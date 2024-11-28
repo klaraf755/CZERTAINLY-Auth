@@ -8,11 +8,11 @@ using Czertainly.Auth.Models.Config;
 using Czertainly.Auth.Models.Dto;
 using Czertainly.Auth.Models.Entities;
 using Microsoft.Extensions.Options;
+using System.IdentityModel.Tokens.Jwt;
 using System.Security.Cryptography;
 using System.Security.Cryptography.X509Certificates;
 using System.Text;
 using System.Text.Json;
-using System.IdentityModel.Tokens.Jwt;
 
 namespace Czertainly.Auth.Services
 {
@@ -148,7 +148,7 @@ namespace Czertainly.Auth.Services
             else if (!string.IsNullOrEmpty(authenticationRequestDto.AuthenticationToken))
             {
                 // Authentication token processing
-                _logger.LogDebug($"Authenticating user with JWT token. Create users: {_authOptions.CreateUnknownUsers}. Create roles: {_authOptions.CreateUnknownRoles}. Sync policy: {_authOptions.SyncPolicy}");
+                _logger.LogDebug("Authenticating user with JWT token. Create users: {CreateUnknownUsers}. Create roles: {CreateUnknownRoles}. Sync policy: {SyncPolicy}", _authOptions.CreateUnknownUsers, _authOptions.CreateUnknownRoles, _authOptions.SyncPolicy);
                 AuthenticationTokenDto? authenticationToken = null;
                 try
                 {
@@ -365,7 +365,7 @@ namespace Czertainly.Auth.Services
             return _mapper.Map<List<UserDto>>(users);
         }
 
-        private static string DecodeBase64Url(string base64Url)
+        private string DecodeBase64Url(string base64Url)
         {
             string base64 = base64Url.Replace('-', '+').Replace('_', '/');
             switch (base64.Length % 4)
