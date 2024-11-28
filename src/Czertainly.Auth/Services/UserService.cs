@@ -365,7 +365,7 @@ namespace Czertainly.Auth.Services
             return _mapper.Map<List<UserDto>>(users);
         }
 
-        private string DecodeBase64Url(string base64Url)
+        private static string DecodeBase64Url(string base64Url)
         {
             string base64 = base64Url.Replace('-', '+').Replace('_', '/');
             switch (base64.Length % 4)
