@@ -13,8 +13,9 @@ namespace Auth.Services
         /// <summary>Guards adding <paramref name="user"/> to <paramref name="role"/>; keeping an existing membership is always allowed.</summary>
         public static void CheckAssignable(Role role, User user)
         {
+            if ((role.Users ?? []).Any(member => member.Uuid == user.Uuid)) return;
+
             var systemMembers = SystemMembers(role);
-            if (systemMembers.Any(member => member.Uuid == user.Uuid)) return;
 
             if (user.SystemUser)
             {

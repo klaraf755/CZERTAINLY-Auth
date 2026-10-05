@@ -224,6 +224,20 @@ public class RoleServiceTests
     }
 
     [Fact]
+    public async Task AssignUsersAsync_AllowsAReplacementThatKeepsAnExistingHumanMember()
+    {
+        var role = SeedPairedRole(out var systemUser);
+        var jane = new User { Username = "jane" };
+        role.Users.Add(jane);
+        _manager.UserRepository.Seed(jane);
+
+        var updated = await ServiceFactory.Role(_manager, _permissions).AssignUsersAsync(role.Uuid, [systemUser.Uuid, jane.Uuid]);
+
+        Assert.Equal(["acme", "jane"], updated.Users.Select(u => u.Username).Order());
+        Assert.Equal(1, _manager.SaveCount);
+    }
+
+    [Fact]
     public async Task AssignUsersAsync_ReportsAnUnknownRoleAsNotFound()
     {
         await Assert.ThrowsAsync<EntityNotFoundException>(() => ServiceFactory.Role(_manager, _permissions).AssignUsersAsync(Guid.NewGuid(), []));
