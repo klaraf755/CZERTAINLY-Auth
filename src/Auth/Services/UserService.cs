@@ -285,6 +285,7 @@ namespace Auth.Services
         public async Task<UserDetailDto> EnableUserAsync(Guid userUuid, bool enableFlag)
         {
             var user = await _repository.GetByKeyAsync(userUuid);
+            if (user.SystemUser) throw new InvalidActionException("Cannot enable or disable system user.");
 
             user.Enabled = enableFlag;
             await _repositoryManager.SaveAsync();
@@ -297,6 +298,8 @@ namespace Auth.Services
             var user = await _repository.GetByKeyAsync(userUuid);
             var role = await _repositoryManager.Role.GetByKeyAsync(roleUuid);
 
+            if (!SystemMembershipGuard.IsHeldBy(user, role)) SystemMembershipGuard.CheckAssignable(role, user);
+
             user.Roles.Add(role);
             await _repositoryManager.SaveAsync();
 
@@ -306,7 +309,14 @@ namespace Auth.Services
         public async Task<UserDetailDto> AssignRolesAsync(Guid userUuid, IEnumerable<Guid> roleUuids)
         {
             var user = await _repository.GetByKeyAsync(userUuid);
-            var roles = await _repositoryManager.Role.GetByUuidsAsync(roleUuids);
+            var roles = (await _repositoryManager.Role.GetByUuidsAsync(roleUuids)).ToList();
+
+            // GetByUuidsAsync does not load role members, which the pairing check needs for every role being granted.
+            foreach (var role in roles.Where(r => !SystemMembershipGuard.IsHeldBy(user, r)))
+            {
+                SystemMembershipGuard.CheckAssignable(await _repositoryManager.Role.GetByKeyAsync(role.Uuid), user);
+            }
+            SystemMembershipGuard.CheckRolesRetained(user, roles);
 
             user.Roles.Clear();
             foreach (var role in roles) user.Roles.Add(role);
@@ -319,6 +329,8 @@ namespace Auth.Services
         {
             var user = await _repository.GetByKeyAsync(userUuid);
             var role = await _repositoryManager.Role.GetByKeyAsync(roleUuid);
+
+            SystemMembershipGuard.CheckRoleRemovable(user, role);
 
             user.Roles.Remove(role);
             await _repositoryManager.SaveAsync();

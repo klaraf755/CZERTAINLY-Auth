@@ -58,7 +58,9 @@ namespace Auth.Services
         public async Task<RoleDetailDto> AssignUsersAsync(Guid roleUuid, IEnumerable<Guid> userUuids)
         {
             var role = await _repository.GetByKeyAsync(roleUuid);
-            var users = await _repositoryManager.User.GetByUuidsAsync(userUuids);
+            var users = (await _repositoryManager.User.GetByUuidsAsync(userUuids)).ToList();
+
+            SystemMembershipGuard.CheckMembersReplaceable(role, users);
 
             role.Users.Clear();
             foreach (var user in users) role.Users.Add(user);
