@@ -301,6 +301,62 @@ public class UserServiceTests
         return (systemUser, role);
     }
 
+    private (User SystemUser, Role Role) SeedUnpairedSystemUserAndRole()
+    {
+        var systemUser = User("acme", systemUser: true);
+        var role = new Role { Name = "acme", SystemRole = true, Users = [] };
+        _manager.UserRepository.Seed(systemUser);
+        _manager.RoleRepository.Seed(role);
+        return (systemUser, role);
+    }
+
+    [Fact]
+    public async Task AssignRoleAsync_PairsANewSystemUserWithItsNewRole()
+    {
+        var (systemUser, role) = SeedUnpairedSystemUserAndRole();
+
+        var updated = await ServiceFactory.User(_manager).AssignRoleAsync(systemUser.Uuid, role.Uuid);
+
+        Assert.Equal("acme", Assert.Single(updated.Roles).Name);
+        Assert.Equal(1, _manager.SaveCount);
+    }
+
+    [Fact]
+    public async Task AssignRolesAsync_PairsANewSystemUserWithItsNewRole()
+    {
+        var (systemUser, role) = SeedUnpairedSystemUserAndRole();
+
+        var updated = await ServiceFactory.User(_manager).AssignRolesAsync(systemUser.Uuid, [role.Uuid]);
+
+        Assert.Equal("acme", Assert.Single(updated.Roles).Name);
+        Assert.Equal(1, _manager.SaveCount);
+    }
+
+    [Fact]
+    public async Task AssignRolesAsync_RefusesToPairANewSystemUserWithSeveralRoles()
+    {
+        var (systemUser, role) = SeedUnpairedSystemUserAndRole();
+        var other = new Role { Name = "other", SystemRole = true, Users = [] };
+        _manager.RoleRepository.Seed(other);
+
+        await Assert.ThrowsAsync<InvalidActionException>(() => ServiceFactory.User(_manager).AssignRolesAsync(systemUser.Uuid, [role.Uuid, other.Uuid]));
+
+        Assert.Empty(systemUser.Roles);
+        Assert.Equal(0, _manager.SaveCount);
+    }
+
+    [Fact]
+    public async Task AssignRoleAsync_RefusesANewSystemUserAnotherSystemRolesAlreadyHeldByHumans()
+    {
+        var (systemUser, _) = SeedUnpairedSystemUserAndRole();
+        var shared = new Role { Name = "shared", SystemRole = true, Users = [User("jane")] };
+        _manager.RoleRepository.Seed(shared);
+
+        await Assert.ThrowsAsync<InvalidActionException>(() => ServiceFactory.User(_manager).AssignRoleAsync(systemUser.Uuid, shared.Uuid));
+
+        Assert.Empty(systemUser.Roles);
+    }
+
     [Fact]
     public async Task AssignRoleAsync_RefusesARolePairedWithASystemUserForAHuman()
     {

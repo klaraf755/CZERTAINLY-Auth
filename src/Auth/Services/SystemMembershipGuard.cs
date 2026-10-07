@@ -10,10 +10,15 @@ namespace Auth.Services
     /// </summary>
     internal static class SystemMembershipGuard
     {
-        /// <summary>Guards adding <paramref name="user"/> to <paramref name="role"/>; keeping an existing membership is always allowed.</summary>
+        /// <summary>
+        /// Guards adding <paramref name="user"/> to <paramref name="role"/>; keeping an existing membership is always
+        /// allowed. The one way a system user joins a role is the pairing made when it is seeded: it holds no role yet
+        /// and the role is a system role with no members.
+        /// </summary>
         public static void CheckAssignable(Role role, User user)
         {
             if ((role.Users ?? []).Any(member => member.Uuid == user.Uuid)) return;
+            if (IsInitialPairing(role, user)) return;
 
             var systemMembers = SystemMembers(role);
 
@@ -28,7 +33,7 @@ namespace Auth.Services
             }
         }
 
-        /// <summary>Guards replacing the members of <paramref name="role"/> with <paramref name="members"/>.</summary>
+        /// <summary>Requires permitted additions and retention of every system member.</summary>
         public static void CheckMembersReplaceable(Role role, IReadOnlyCollection<User> members)
         {
             foreach (var member in members) CheckAssignable(role, member);
@@ -51,6 +56,11 @@ namespace Auth.Services
             {
                 if (retained.All(role => role.Uuid != held.Uuid)) throw CannotRemove(held, user);
             }
+
+            if (retained.Count > 1)
+            {
+                throw new InvalidActionException($"System user '{user.Username}' holds only its own role and cannot hold {retained.Count} roles.");
+            }
         }
 
         /// <summary>Guards an explicit removal, which detaches without assigning anything the other rules could inspect.</summary>
@@ -58,6 +68,9 @@ namespace Auth.Services
         {
             if (user.SystemUser && (user.Roles ?? []).Any(held => held.Uuid == role.Uuid)) throw CannotRemove(role, user);
         }
+
+        private static bool IsInitialPairing(Role role, User user)
+            => user.SystemUser && role.SystemRole && (user.Roles ?? []).Count == 0 && (role.Users ?? []).Count == 0;
 
         public static bool IsHeldBy(User user, Role role) => (user.Roles ?? []).Any(held => held.Uuid == role.Uuid);
 

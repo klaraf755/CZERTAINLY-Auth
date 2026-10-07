@@ -306,6 +306,9 @@ namespace Auth.Services
             return user.ToDetailDto();
         }
 
+        /// <summary>
+        /// Replaces the roles of the user. A system user cannot be left without its own role, and holds no other.
+        /// </summary>
         public async Task<UserDetailDto> AssignRolesAsync(Guid userUuid, IEnumerable<Guid> roleUuids)
         {
             var user = await _repository.GetByKeyAsync(userUuid);
