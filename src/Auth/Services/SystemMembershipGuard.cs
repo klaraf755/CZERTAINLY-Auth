@@ -17,7 +17,7 @@ namespace Auth.Services
         /// </summary>
         public static void CheckAssignable(Role role, User user)
         {
-            if ((role.Users ?? []).Any(member => member.Uuid == user.Uuid)) return;
+            if (IsMember(role, user)) return;
             if (IsInitialPairing(role, user)) return;
 
             var systemMembers = SystemMembers(role);
@@ -33,9 +33,15 @@ namespace Auth.Services
             }
         }
 
-        /// <summary>Requires permitted additions and retention of every system member.</summary>
+        /// <summary>Requires permitted additions and retention of every system member; a first pairing takes no other member in the same request.</summary>
         public static void CheckMembersReplaceable(Role role, IReadOnlyCollection<User> members)
         {
+            var pairing = members.FirstOrDefault(member => !IsMember(role, member) && IsInitialPairing(role, member));
+            if (pairing != null && members.Count > 1)
+            {
+                throw new InvalidActionException($"Role '{role.Name}' is being paired with system user '{pairing.Username}' and cannot take other members.");
+            }
+
             foreach (var member in members) CheckAssignable(role, member);
 
             foreach (var systemMember in SystemMembers(role))
@@ -68,6 +74,8 @@ namespace Auth.Services
         {
             if (user.SystemUser && (user.Roles ?? []).Any(held => held.Uuid == role.Uuid)) throw CannotRemove(role, user);
         }
+
+        private static bool IsMember(Role role, User user) => (role.Users ?? []).Any(member => member.Uuid == user.Uuid);
 
         private static bool IsInitialPairing(Role role, User user)
             => user.SystemUser && role.SystemRole && (user.Roles ?? []).Count == 0 && (role.Users ?? []).Count == 0;

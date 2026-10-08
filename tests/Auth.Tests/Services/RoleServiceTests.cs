@@ -184,6 +184,38 @@ public class RoleServiceTests
     }
 
     [Fact]
+    public async Task AssignUsersAsync_RefusesAHumanAlongsideAFirstPairing()
+    {
+        var role = Role("acme", systemRole: true);
+        var systemUser = new User { Username = "acme", SystemUser = true, Roles = [] };
+        var jane = new User { Username = "jane" };
+        _manager.RoleRepository.Seed(role);
+        _manager.UserRepository.Seed(systemUser, jane);
+
+        await Assert.ThrowsAsync<InvalidActionException>(
+            () => ServiceFactory.Role(_manager, _permissions).AssignUsersAsync(role.Uuid, [systemUser.Uuid, jane.Uuid]));
+
+        Assert.Empty(role.Users);
+        Assert.Equal(0, _manager.SaveCount);
+    }
+
+    [Fact]
+    public async Task AssignUsersAsync_RefusesTwoSystemUsersInAFirstPairing()
+    {
+        var role = Role("acme", systemRole: true);
+        var acme = new User { Username = "acme", SystemUser = true, Roles = [] };
+        var scep = new User { Username = "scep", SystemUser = true, Roles = [] };
+        _manager.RoleRepository.Seed(role);
+        _manager.UserRepository.Seed(acme, scep);
+
+        await Assert.ThrowsAsync<InvalidActionException>(
+            () => ServiceFactory.Role(_manager, _permissions).AssignUsersAsync(role.Uuid, [acme.Uuid, scep.Uuid]));
+
+        Assert.Empty(role.Users);
+        Assert.Equal(0, _manager.SaveCount);
+    }
+
+    [Fact]
     public async Task AssignUsersAsync_RefusesASystemUserThatAlreadyHoldsARoleOnAnEmptySystemRole()
     {
         var role = Role("other", systemRole: true);
