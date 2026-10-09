@@ -44,12 +44,10 @@ namespace Auth.Services
 
             foreach (var member in members) CheckAssignable(role, member);
 
-            foreach (var systemMember in SystemMembers(role))
+            var omitted = SystemMembers(role).FirstOrDefault(systemMember => members.All(member => member.Uuid != systemMember.Uuid));
+            if (omitted != null)
             {
-                if (members.All(member => member.Uuid != systemMember.Uuid))
-                {
-                    throw new InvalidActionException($"Role '{role.Name}' belongs to system user '{systemMember.Username}', which cannot be removed from it.");
-                }
+                throw new InvalidActionException($"Role '{role.Name}' belongs to system user '{omitted.Username}', which cannot be removed from it.");
             }
         }
 
@@ -58,10 +56,8 @@ namespace Auth.Services
         {
             if (!user.SystemUser) return;
 
-            foreach (var held in user.Roles ?? [])
-            {
-                if (retained.All(role => role.Uuid != held.Uuid)) throw CannotRemove(held, user);
-            }
+            var detached = (user.Roles ?? []).FirstOrDefault(held => retained.All(role => role.Uuid != held.Uuid));
+            if (detached != null) throw CannotRemove(detached, user);
 
             if (retained.Count > 1)
             {
